@@ -279,7 +279,11 @@ require('lazy').setup({
     'mrcjkb/haskell-tools.nvim',
     version = '^3', -- Recommended
     ft = { 'haskell', 'lhaskell', 'cabal', 'cabalproject' },
-  }
+  },
+
+  {
+    'ntpeters/vim-better-whitespace',
+  },
 }, {})
 
 -- [[ Setting options ]]
