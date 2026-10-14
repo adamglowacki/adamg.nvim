@@ -2,6 +2,9 @@
 vim.g.mapleader = ' '
 vim.g.maplocalleader = ' '
 
+-- Terminal font is a Nerd Font, so plugins can render icon glyphs
+vim.g.have_nerd_font = true
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
 if not vim.loop.fs_stat(lazypath) then
@@ -28,7 +31,7 @@ require('lazy').setup({
       'williamboman/mason.nvim',
       'williamboman/mason-lspconfig.nvim',
       { 'j-hui/fidget.nvim', opts = {} },
-      'folke/neodev.nvim',
+      { 'folke/lazydev.nvim', ft = 'lua', opts = {} },
     },
   },
 
@@ -69,12 +72,32 @@ require('lazy').setup({
     'nvim-lualine/lualine.nvim',
     opts = {
       options = {
-        icons_enabled = false,
+        icons_enabled = true,
         theme = 'oxocarbon',
         component_separators = '|',
         section_separators = '',
       },
     },
+  },
+
+  {
+    'akinsho/bufferline.nvim',
+    version = '*',
+    dependencies = 'nvim-tree/nvim-web-devicons',
+    opts = {
+      options = {
+        diagnostics = 'nvim_lsp',
+        separator_style = 'slant',
+        show_buffer_close_icons = false,
+        show_close_icon = false,
+      },
+    },
+  },
+
+  {
+    'folke/trouble.nvim',
+    dependencies = { 'nvim-tree/nvim-web-devicons' },
+    opts = {},
   },
 
   {
@@ -115,7 +138,9 @@ require('lazy').setup({
   { 'ntpeters/vim-better-whitespace' },
   'echasnovski/mini.nvim',
   'nvim-tree/nvim-web-devicons',
-}, {})
+}, {
+  rocks = { enabled = false },
+})
 
 -- [[ Setting options ]]
 vim.o.hlsearch = false
@@ -143,6 +168,18 @@ vim.keymap.set('n', '[d', vim.diagnostic.goto_prev, { desc = 'Go to prev diagnos
 vim.keymap.set('n', ']d', vim.diagnostic.goto_next, { desc = 'Go to next diagnostic' })
 vim.keymap.set('n', '<leader>e', vim.diagnostic.open_float, { desc = 'Open diagnostic float' })
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostics list' })
+
+-- Buffer keymaps (bufferline)
+vim.keymap.set('n', '<Tab>', '<Cmd>BufferLineCycleNext<CR>', { desc = 'Next buffer' })
+vim.keymap.set('n', '<S-Tab>', '<Cmd>BufferLineCyclePrev<CR>', { desc = 'Prev buffer' })
+vim.keymap.set('n', '<leader>bd', '<Cmd>bdelete<CR>', { desc = '[B]uffer [D]elete' })
+vim.keymap.set('n', '<leader>bp', '<Cmd>BufferLinePick<CR>', { desc = '[B]uffer [P]ick' })
+
+-- Trouble (diagnostics UI) keymaps
+vim.keymap.set('n', '<leader>xx', '<Cmd>Trouble diagnostics toggle<CR>', { desc = 'Diagnostics (Trouble)' })
+vim.keymap.set('n', '<leader>xX', '<Cmd>Trouble diagnostics toggle filter.buf=0<CR>', { desc = 'Buffer Diagnostics (Trouble)' })
+vim.keymap.set('n', '<leader>xL', '<Cmd>Trouble loclist toggle<CR>', { desc = 'Location List (Trouble)' })
+vim.keymap.set('n', '<leader>xQ', '<Cmd>Trouble qflist toggle<CR>', { desc = 'Quickfix List (Trouble)' })
 
 -- [[ Telescope Setup ]]
 require('telescope').setup {
@@ -177,6 +214,7 @@ end
 -- Updated Which-Key (v3) registration
 local wk = require('which-key')
 wk.add({
+  { "<leader>b", group = "[B]uffer" },
   { "<leader>c", group = "[C]ode" },
   { "<leader>d", group = "[D]ocument" },
   { "<leader>g", group = "[G]it" },
@@ -185,11 +223,11 @@ wk.add({
   { "<leader>s", group = "[S]earch" },
   { "<leader>t", group = "[T]oggle" },
   { "<leader>w", group = "[W]orkspace" },
+  { "<leader>x", group = "Trouble/Diagnostics" },
 })
 
 -- [[ Mason & LSP Servers ]]
 require('mason').setup()
-require('mason-lspconfig').setup()
 
 local servers = {
   lua_ls = {
@@ -200,21 +238,21 @@ local servers = {
   },
 }
 
-require('neodev').setup()
 local capabilities = vim.lsp.protocol.make_client_capabilities()
 capabilities = require('cmp_nvim_lsp').default_capabilities(capabilities)
 
-local mason_lspconfig = require 'mason-lspconfig'
-mason_lspconfig.setup { ensure_installed = vim.tbl_keys(servers) }
+vim.lsp.config('*', {
+  capabilities = capabilities,
+  on_attach = on_attach,
+})
 
-mason_lspconfig.setup_handlers {
-  function(server_name)
-    require('lspconfig')[server_name].setup {
-      capabilities = capabilities,
-      on_attach = on_attach,
-      settings = servers[server_name],
-    }
-  end,
+for server_name, settings in pairs(servers) do
+  vim.lsp.config(server_name, { settings = settings })
+end
+
+require('mason-lspconfig').setup {
+  ensure_installed = vim.tbl_keys(servers),
+  automatic_enable = true,
 }
 
 -- [[ nvim-cmp setup ]]
